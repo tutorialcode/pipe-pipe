@@ -22,14 +22,11 @@ def has_three_cols(tokens):
 def has_question_in_second_col(tokens):
   return tokens[1][-1] == '?'
 
-def has_no_question_in_second_col(tokens):
-  return not has_question_in_second_col(tokens)
-
 def is_input_type(tokens):
   return has_no_third_col(tokens) and has_question_in_second_col(tokens)
 
 def is_assign_type(tokens):
-  return has_no_third_col(tokens) and has_no_question_in_second_col(tokens)
+  return has_no_third_col(tokens) and not has_question_in_second_col(tokens)
 
 def is_output_type(tokens):
   return has_no_first_col(tokens)
@@ -57,45 +54,48 @@ def execute_compound(var_name, expression, output_format):
   execute_assign(var_name, expression)
   print(output_format.replace('__', str(bindings[var_name])))
 
+def execute(ast):
+  for line in ast:
+    line_type = line[0]
+    params = line[1:]
+    if(line_type == 'INPUT'):    execute_input(*params)
+    if(line_type == 'ASSIGN'):   execute_assign(*params)
+    if(line_type == 'OUTPUT'):   execute_output(*params)
+    if(line_type == 'COMPOUND'): execute_compound(*params)
+
+def parse(tokens, line):
+  if(is_input_type(tokens)):
+    return ( 'INPUT', spaceless(tokens[0]), tokens[1] )
+  elif(is_assign_type(tokens)):
+    return ( 'ASSIGN', spaceless(tokens[0]), tokens[1] )
+  elif(is_output_type(tokens)):
+    return ( 'OUTPUT', spaceless(tokens[1]), tokens[2] )
+  elif(is_compound_type(tokens)):
+    return ( 'COMPOUND', spaceless(tokens[0]), tokens[1], tokens[2] )
+  else:
+    raise Exception('line type not supported - {}', line)
+
+def tokenize(line):
+  tokens = line.split('|')
+  tokens = [t.strip() for t in tokens]
+  tokens = [None if t=='' else t for t in tokens]
+
+  if(len(tokens) == 2):
+    tokens.append(None)
+
+  if(len(tokens) == 3):
+    return tokens
+  else:
+    raise Exception('too many columns - {}', line)
+
 def run(program_lines):
-
+  ast = []
   for line in program_lines:
-    
-    # ignore if the line doesn't contain a pipe
-    if('|' not in line):
-      continue
-  
-    # break a line into tokens
-    tokens = line.split('|')
+    if('|' in line):
+      tokens = tokenize(line)
+      line_node = parse(tokens, line)
+      ast.append(line_node)
 
-    # strip surrounding spaces
-    tokens = [t.strip() for t in tokens]
-    
-    # use None to represent an empty token
-    tokens = [None if t=='' else t for t in tokens]
-
-    # if a line has only 2 tokens, add an extra None
-    if(len(tokens)==2):
-      tokens.append(None)
-
-    # check error
-    if(len(tokens) > 3):
-      raise Exception('too many columns on the line - {}', line)
-
-    # tokenization over, parsing begin
-    if(is_input_type(tokens)):
-      execute_input(spaceless(tokens[0]), tokens[1])
-
-    elif(is_assign_type(tokens)):
-      execute_assign(spaceless(tokens[0]), tokens[1])
-
-    elif(is_output_type(tokens)):
-      execute_output(tokens[1], tokens[2])
-
-    elif(is_compound_type(tokens)):
-      execute_compound(spaceless(tokens[0]), tokens[1], tokens[2])
-
-    else:
-      raise Exception('interpret can not understand the line - {}', line)
+  execute(ast)
 
 run(program_lines)
