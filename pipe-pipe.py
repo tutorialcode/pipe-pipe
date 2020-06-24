@@ -20,7 +20,7 @@ def has_three_cols(tokens):
   return tokens[0] != None and tokens[1] != None and tokens[2] != None 
 
 def has_question_in_second_col(tokens):
-  return tokens[1].strip()[-1] == '?'
+  return tokens[1][-1] == '?'
 
 def has_no_question_in_second_col(tokens):
   return not has_question_in_second_col(tokens)
