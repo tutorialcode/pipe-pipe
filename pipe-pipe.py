@@ -1,7 +1,7 @@
 import sys
 
-tx_file = sys.argv[1]
-input_file = open(tx_file, "r")
+file_name = sys.argv[1]
+input_file = open(file_name, "r")
 input_text = input_file.read()
 program_lines = input_text.split('\n')
 
@@ -93,8 +93,8 @@ def run(program_lines):
   for line in program_lines:
     if('|' in line):
       tokens = tokenize(line)
-      line_node = parse(tokens, line)
-      ast.append(line_node)
+      ast_line = parse(tokens, line)
+      ast.append(ast_line)
 
   execute(ast)
 
