@@ -76,16 +76,25 @@ def execute_assign(var_name, expression):
 
 def execute_output(expression, output_format):
   
-  # use execute_assign to create a temporary variable
-  # because an OUTPUT line doesn't have a variable, we use the special name __tmpvar__
+  # use execute_assign to create a temporary variable 
+  # since an OUTPUT line doesn't have a variable, we use the special name __tmpvar__
+  # there's no need to remove spaces from expression here because 
+  # execute_assign will take care of that
   execute_assign('__tmpvar__', expression)
   
-  # replace the double underscore with the temporary variable, and print the output string
+  # replace the double underscore with the temporary variable, 
+  # and print the output string
   print(output_format.replace('__', str(bindings['__tmpvar__'])))
   
 # basically the same as execute_output, but using an actual variable name
 def execute_compound(var_name, expression, output_format):
   execute_assign(var_name, expression)
+
+  # we need to remove the spaces from var_name because 
+  # it will be used directly in this function later
+  var_name = spaceless(var_name)
+  
+  # we're using var_name here to get the value from bindings
   print(output_format.replace('__', str(bindings[var_name])))
 
 # the main execute function, it doesn't do any real work itself
@@ -137,9 +146,11 @@ def tokenize(line):
     # add a third token (None) to keep every line consistent with three tokens
     tokens.append(None)
 
-  # if the line has more than two tokens, that means there's a syntax error
-  if(len(tokens) > 2):
+  # if the line doesn't have three tokens, that means there's a syntax error
+  if(len(tokens) != 3):
     raise Exception('too many columns - {}', line)
+    
+  return tokens
 
 # -------------
 # THE MAIN LOOP
