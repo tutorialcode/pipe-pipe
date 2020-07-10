@@ -3,24 +3,40 @@ import sys
 file_name = sys.argv[1]
 input_file = open(file_name, "r")
 input_text = input_file.read()
+
+# split the string into an array of lines using the new line character '\n'
 program_lines = input_text.split('\n')
 
+# this will be used to store the variables in a PipePipe program
 bindings = {}
 
+# remove all spaces from a string
 def spaceless(str):
   return str.replace(' ', '')
 
+# --------------------------------------
+# LOW-LEVEL LINE TYPE CHECKING FUNCTIONS
+# --------------------------------------
+
+# return True if line has first token and second token, but no third token
 def has_no_third_col(tokens):
   return tokens[0] != None and tokens[1] != None and tokens[2] == None 
 
+# return True if line has no third token, but has second token and third token 
 def has_no_first_col(tokens):
   return tokens[0] == None and tokens[1] != None and tokens[2] != None 
 
+# return True if line has all three tokens (for COMPOUND type)
 def has_three_cols(tokens):
   return tokens[0] != None and tokens[1] != None and tokens[2] != None 
 
+# return True if line has question in second token
 def has_question_in_second_col(tokens):
   return tokens[1][-1] == '?'
+
+# --------------------------------------
+# TOP-LEVEL LINE TYPE CHECKING FUNCTIONS
+# --------------------------------------
 
 def is_input_type(tokens):
   return has_no_third_col(tokens) and has_question_in_second_col(tokens)
@@ -34,26 +50,46 @@ def is_output_type(tokens):
 def is_compound_type(tokens):
   return has_three_cols(tokens)
 
+# -------------------
+# EXECUTION FUNCTIONS
+# -------------------
+
 def execute_input(var_name, question):
+  
+  # remove all spaces from var_name
+  var_name = spaceless(var_name)
+  
+  # use the input function to ask the user for input, and put the return value in bindings
   bindings[var_name] = int(input(question + ' '))
 
 def execute_assign(var_name, expression):
-  if(' x ' in expression):
-    expression = expression.replace(' x ', ' * ')
+  
+  # remove all spaces from var_name and expression
+  var_name = spaceless(var_name)
   expression = spaceless(expression)
+  
+  # build a Python statement as a string
   statement = var_name + '=' + expression
-  if(var_name not in bindings):
-    bindings[var_name] = None # declare variable
+  
+  # use the built-in exec function to execute the Python statement
   exec(statement, bindings)
 
 def execute_output(expression, output_format):
+  
+  # use execute_assign to create a temporary variable
+  # because an OUTPUT line doesn't have a variable, we use the special name __tmpvar__
   execute_assign('__tmpvar__', expression)
+  
+  # replace the double underscore with the temporary variable, and print the output string
   print(output_format.replace('__', str(bindings['__tmpvar__'])))
-
+  
+# basically the same as execute_output, but using an actual variable name
 def execute_compound(var_name, expression, output_format):
   execute_assign(var_name, expression)
   print(output_format.replace('__', str(bindings[var_name])))
 
+# the main execute function, it doesn't do any real work itself
+# it delegates the work to the other execute functions
 def execute(ast):
   for line in ast:
     line_type = line[0]
@@ -63,39 +99,69 @@ def execute(ast):
     if(line_type == 'OUTPUT'):   execute_output(*params)
     if(line_type == 'COMPOUND'): execute_compound(*params)
 
+# -------
+# PARSING
+# -------
+
+# take the tokens of a line, and return the AST (as a tuple) for that line
 def parse(tokens, line):
   if(is_input_type(tokens)):
-    return ( 'INPUT', spaceless(tokens[0]), tokens[1] )
+    return ( 'INPUT', tokens[0], tokens[1] )
   elif(is_assign_type(tokens)):
-    return ( 'ASSIGN', spaceless(tokens[0]), tokens[1] )
+    return ( 'ASSIGN', tokens[0], tokens[1] )
   elif(is_output_type(tokens)):
-    return ( 'OUTPUT', spaceless(tokens[1]), tokens[2] )
+    return ( 'OUTPUT', tokens[1], tokens[2] )
   elif(is_compound_type(tokens)):
-    return ( 'COMPOUND', spaceless(tokens[0]), tokens[1], tokens[2] )
+    return ( 'COMPOUND', tokens[0], tokens[1], tokens[2] )
   else:
     raise Exception('line type not supported - {}', line)
 
-def tokenize(line):
-  tokens = line.split('|')
-  tokens = [t.strip() for t in tokens]
-  tokens = [None if t=='' else t for t in tokens]
+# ------------
+# TOKENIZATION
+# ------------
 
+def tokenize(line):
+  
+  # break a string into a list of smaller strings, each represent a column (token)
+  tokens = line.split('|')
+  
+  # strip surrounding spaces from each token (t)
+  tokens = [ t.strip() for t in tokens ]
+  
+  # for each token, return None if it's an empty string, otherwise return the token (t) itself
+  tokens = [ None if t=='' else t for t in tokens ]
+
+  # if the line has only two tokens, that means it contains only one pipe (the second pipe is optional for INPUT line and ASSIGN line)
   if(len(tokens) == 2):
+    
+    # add a third token (None) to keep every line consistent with three tokens
     tokens.append(None)
 
-  if(len(tokens) == 3):
-    return tokens
-  else:
+  # if the line has more than two tokens, that means there's a syntax error
+  if(len(tokens) > 2):
     raise Exception('too many columns - {}', line)
 
-def run(program_lines):
-  ast = []
-  for line in program_lines:
-    if('|' in line):
-      tokens = tokenize(line)
-      ast_line = parse(tokens, line)
-      ast.append(ast_line)
+# -------------
+# THE MAIN LOOP
+# -------------
+    
+# prepare an array to store the AST    
+ast = []
 
-  execute(ast)
+# for each line in a PipePipe program
+for line in program_lines:
+  
+  # a valid line should have at least one pipe '|'
+  if('|' in line):
+    
+    # get tokens from string
+    tokens = tokenize(line)
+    
+    # get AST from tokens
+    ast_line = parse(tokens, line)
+    
+    # add the AST of the line to the array
+    ast.append(ast_line)
 
-run(program_lines)
+# call the execute function by passing the AST
+execute(ast)
